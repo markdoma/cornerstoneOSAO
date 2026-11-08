@@ -1,0 +1,9 @@
+{
+  "name": "@orchestrator/widget",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  }
+}

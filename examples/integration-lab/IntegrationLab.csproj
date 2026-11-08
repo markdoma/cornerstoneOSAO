@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DefineConstants Condition="Exists('AoConnector.cs')">$(DefineConstants);AO_CONNECTED</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="Widget.html" Condition="Exists('Widget.html')" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

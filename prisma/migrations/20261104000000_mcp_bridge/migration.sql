@@ -1,0 +1,15 @@
+ALTER TABLE "Connection" ADD COLUMN "bridgeRevisionId" TEXT;
+ALTER TABLE "Tool" ADD COLUMN "bridgeRevisionId" TEXT, ADD COLUMN "bridgeOperationId" TEXT;
+ALTER TABLE "Deployment" ADD COLUMN "authMode" TEXT NOT NULL DEFAULT 'auto';
+ALTER TABLE "WidgetSession" ADD COLUMN "credentialHandle" TEXT, ADD COLUMN "tenantId" TEXT, ADD COLUMN "employeeId" TEXT;
+CREATE TABLE "Bridge" ("id" TEXT PRIMARY KEY,"orgId" TEXT NOT NULL,"name" TEXT NOT NULL,"draft" JSONB NOT NULL,"active" BOOLEAN NOT NULL DEFAULT true,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE INDEX "Bridge_orgId_idx" ON "Bridge"("orgId");
+CREATE TABLE "BridgeRevision" ("id" TEXT PRIMARY KEY,"bridgeId" TEXT NOT NULL,"orgId" TEXT NOT NULL,"number" INTEGER NOT NULL,"fingerprint" TEXT NOT NULL,"config" JSONB NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX "BridgeRevision_bridgeId_number_key" ON "BridgeRevision"("bridgeId","number");
+CREATE INDEX "BridgeRevision_orgId_idx" ON "BridgeRevision"("orgId");
+CREATE TABLE "BridgeTenant" ("id" TEXT PRIMARY KEY,"tenantId" TEXT NOT NULL,"orgId" TEXT NOT NULL);
+CREATE UNIQUE INDEX "BridgeTenant_tenantId_key" ON "BridgeTenant"("tenantId");
+CREATE UNIQUE INDEX "BridgeTenant_orgId_key" ON "BridgeTenant"("orgId");
+CREATE TABLE "BridgeExecution" ("id" TEXT PRIMARY KEY,"orgId" TEXT NOT NULL,"executionId" TEXT NOT NULL,"revisionId" TEXT NOT NULL,"operationId" TEXT NOT NULL,"userId" TEXT NOT NULL,"tenantId" TEXT NOT NULL,"deploymentId" TEXT NOT NULL,"digest" TEXT NOT NULL,"status" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE UNIQUE INDEX "BridgeExecution_orgId_executionId_key" ON "BridgeExecution"("orgId","executionId");
+CREATE INDEX "BridgeExecution_orgId_createdAt_idx" ON "BridgeExecution"("orgId","createdAt");

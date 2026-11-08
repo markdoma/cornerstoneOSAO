@@ -1,0 +1,64 @@
+Any backend language can implement this HTTP contract. No AO library is required.
+
+1. Mount POST at AO_SESSION_ENDPOINT on the host application, behind its existing
+   login/session middleware. Require Origin == AO_APPLICATION_ORIGIN, JSON object
+   input <= 2048 bytes and the existing host CSRF policy. Browser userId, tenantId,
+   API tokens and toolIds MUST NOT establish identity or permissions.
+2. Resolve the verified login, assistant permission, active tenant, native API
+   bearer token and expiry. Match AO_TENANT_ID; unknown tenants fail closed.
+   Select organization-owned deployment/key using server configuration only.
+3. Recheck the same host login and tenant immediately before the exchange.
+
+SERVER-TO-SERVER REQUEST (10-second timeout; no redirects; HTTPS):
+POST {AO_ORIGIN}/v1/widget-sessions
+Authorization: Bearer {AO_INTEGRATION_KEY}
+Content-Type: application/json
+
+{
+  "deploymentId": "<trusted server-configured deployment>",
+  "userId": "<verified host user>",
+  "tenantId": "<verified active tenant>",
+  "origin": "<AO_APPLICATION_ORIGIN>",
+  "apiToken": "<native user bearer token accepted by the existing host APIs>",
+  "apiTokenExpiresAt": "<ISO-8601 UTC expiry>",
+  "useDeploymentTools": true
+}
+
+Optional employeeId must be resolved server-side. Never assume it equals userId.
+To narrow permissions replace useDeploymentTools with toolIds: [...]; [] denies
+all tools. Supply exactly one mode. Never use an owner/admin credential instead.
+
+4. Accept HTTP 200 only, bounded JSON <= 16000 bytes. Validate:
+   - token is 43 base64url characters;
+   - deploymentId equals trusted deployment;
+   - widgetOrigin equals AO_WIDGET_ORIGIN;
+   - expiresAt is future, <= native token expiry and <= now + 5 minutes.
+5. Recheck the same host login/active tenant after exchange. If it ended, revoke
+   the issued widget token and return 401. Track issued access by host session
+   for server-side logout revocation; if tracking fails, revoke and return 502.
+6. Return ONLY the fields below with Cache-Control: no-store. Do not forward
+   raw upstream errors. Invalid login -> 401; bad origin/tenant -> 403;
+   invalid JSON -> 400; upstream failure -> 502. Never log credentials.
+
+BROWSER RESPONSE:
+{"token":"<opaque AO widget token>","expiresAt":"<ISO UTC>","deploymentId":"<deployment>","widgetOrigin":"<public AO widget origin>"}
+
+LOGOUT (server-side, for EVERY issued token tracked under that host login):
+POST {AO_ORIGIN}/v1/widget/revoke
+Authorization: Bearer <opaque widget token>
+X-Host-Origin: {AO_APPLICATION_ORIGIN}
+
+Also call window.OrchestratorWidget?.logout() in the host browser logout flow.
+Tenant changes require revoking old sessions and loading the correct deployment.
+The widget refreshes through the same host endpoint before expiry.
+
+One external tenant maps to one distinct AO organization. The included language
+connectors use one configured tenant/deployment per instance. A multi-tenant host
+must resolve its own tenant -> deployment/key allowlist from VERIFIED active
+membership; never let browser configuration select that mapping.
+
+CSRF: keep existing framework protections. The bundled loader sends an Origin-
+checked JSON POST. If the framework requires an anti-forgery token header, add
+data-csrf-header="X-CSRF-TOKEN" and data-csrf-meta="csrf-token" to the loader
+script, and render the existing token in a meta tag with name="csrf-token".
+Use your framework's actual header name; do not expose native API bearer tokens or integration keys to JS.

@@ -1,0 +1,10 @@
+node_modules
+.local
+**/.next
+**/dist
+package-lock.json
+prisma/migrations
+prisma/schema.prisma
+test-results
+playwright-report
+.env

@@ -1,0 +1,39 @@
+# Optional local demo hosts. Use alongside docker-compose.yml.
+x-demo-api-allowlist: &demo-api-allowlist
+  ALLOW_LOCAL_DEMO_API: http://127.0.0.1:3002/api,http://127.0.0.1:3003/api
+
+services:
+  api:
+    environment: *demo-api-allowlist
+    ports: ['127.0.0.1:3002:3002', '127.0.0.1:3003:3003']
+  bridge:
+    environment: *demo-api-allowlist
+  sample-host:
+    image: cornerstonelabs-ao:local
+    init: true
+    profiles: [demo]
+    # Share AO's loopback so the demo keeps its exact development-only API allowlist.
+    network_mode: service:api
+    command: ['npm', 'run', 'start', '-w', '@orchestrator/sample-host']
+    environment:
+      API_URL: http://127.0.0.1:4000
+      WIDGET_ORIGIN: ${WIDGET_ORIGIN:-http://localhost:4000}
+      SAMPLE_ORIGIN: ${SAMPLE_ORIGIN:-http://localhost:3002}
+      SAMPLE_DEPLOYMENT_ID: ${SAMPLE_DEPLOYMENT_ID:-}
+      SAMPLE_INTEGRATION_KEY: ${SAMPLE_INTEGRATION_KEY:-}
+      SAMPLE_TENANT_ID: ${SAMPLE_TENANT_ID:-}
+      SAMPLE_SESSION_ENDPOINT: ${SAMPLE_SESSION_ENDPOINT:-/assistant/session}
+      SAMPLE_TOOL_IDS: ${SAMPLE_TOOL_IDS:-}
+      NODE_ENV: development
+    depends_on:
+      api: { condition: service_healthy, restart: true }
+  integration-lab:
+    profiles: [integration-lab]
+    # Local rehearsal only: use the existing exact loopback demo allowlist.
+    network_mode: service:api
+    build: ./examples/integration-lab
+    env_file:
+      - path: ./examples/integration-lab/.env
+        required: false
+    depends_on:
+      api: { condition: service_healthy, restart: true }

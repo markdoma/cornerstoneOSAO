@@ -1,0 +1,71 @@
+{
+  "name": "cornerstonelabs-ao",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run db:generate && npm run build -w @orchestrator/widget && npm run build -w @orchestrator/web && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "test:e2e": "playwright test",
+    "setup:env": "node scripts/setup-env.mjs",
+    "predev": "npm run db:generate && npm run build -w @orchestrator/widget",
+    "setup:bridge": "node scripts/setup-bridge.mjs",
+    "dev:bridge": "npm run dev -w @orchestrator/bridge",
+    "test:bridge": "node --import tsx --test tests/integration/bridge.test.ts",
+    "test:e2e:bridge": "playwright test -c playwright.bridge.config.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.0.1",
+    "@fastify/rate-limit": "^10.3.0",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/fastify": "^2.0.1",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "@prisma/client": "^6.19.0",
+    "argon2": "^0.44.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.6.1",
+    "ipaddr.js": "^2.2.0",
+    "jose": "^6.2.15",
+    "lucide-react": "^0.468.0",
+    "next": "^16.4.3",
+    "nodemailer": "^10.3.1",
+    "openai": "^6.7.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "redis": "^5.12.1",
+    "undici": "^6.22.0",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.19.0",
+    "@types/nodemailer": "^7.0.3",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.9.10",
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0",
+    "postcss": "^8.5.23"
+  },
+  "type": "module"
+}

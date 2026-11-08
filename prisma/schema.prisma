@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  name String
+  createdAt DateTime @default(now())
+}
+model Organization {
+  id String @id @default(cuid())
+  name String
+  createdAt DateTime @default(now())
+}
+model Membership {
+  id String @id @default(cuid())
+  userId String
+  orgId String
+  role String @default("ADMIN")
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+model DashboardSession {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  orgId String
+  expiresAt DateTime
+}
+model PasswordReset {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  expiresAt DateTime
+}
+model Agent {
+  id String @id @default(cuid())
+  orgId String
+  draft Json
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orgId])
+}
+model AgentVersion {
+  id String @id @default(cuid())
+  orgId String
+  agentId String
+  number Int
+  config Json
+  createdAt DateTime @default(now())
+  @@unique([agentId, number])
+  @@index([orgId])
+}
+model Connection {
+  bridgeRevisionId String?
+  id String @id @default(cuid())
+  orgId String
+  name String
+  baseUrl String
+  createdAt DateTime @default(now())
+  @@index([orgId])
+}
+model Tool {
+  bridgeRevisionId String?
+  bridgeOperationId String?
+  id String @id @default(cuid())
+  orgId String
+  connectionId String
+  definition Json
+  enabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([orgId])
+}
+model Deployment {
+  authMode String @default("auto")
+  id String @id @default(cuid())
+  orgId String
+  versionId String
+  name String
+  keyHash String @unique
+  origins String[]
+  theme Json
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  @@index([orgId])
+}
+model WidgetSession {
+  credentialHandle String?
+  tenantId String?
+  employeeId String?
+  id String @id @default(cuid())
+  tokenHash String @unique
+  orgId String
+  deploymentId String
+  versionId String
+  userId String
+  origin String
+  toolIds String[]
+  credential String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([orgId, deploymentId, userId])
+  @@index([expiresAt])
+}
+model Conversation {
+  id String @id @default(cuid())
+  orgId String
+  deploymentId String
+  versionId String
+  userId String
+  busyUntil DateTime?
+  turnId String?
+  createdAt DateTime @default(now())
+  @@index([orgId, deploymentId, userId])
+}
+model Message {
+  id String @id @default(cuid())
+  conversationId String
+  role String
+  content String
+  createdAt DateTime @default(now())
+  @@index([conversationId, createdAt])
+}
+model PendingAction {
+  id String @id @default(cuid())
+  orgId String
+  conversationId String
+  deploymentId String
+  versionId String
+  userId String
+  toolId String
+  arguments Json
+  digest String
+  responseId String
+  callId String
+  callsUsed Int
+  turnDeadline DateTime
+  status String @default("PENDING")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([conversationId, status])
+}
+model AuditEvent {
+  id String @id @default(cuid())
+  orgId String
+  conversationId String?
+  userId String
+  kind String
+  toolId String?
+  status String
+  createdAt DateTime @default(now())
+  @@index([orgId, createdAt])
+}
+model Usage {
+  id String @id @default(cuid())
+  orgId String
+  conversationId String
+  inputTokens Int
+  outputTokens Int
+  createdAt DateTime @default(now())
+  @@index([orgId])
+}
+
+model Bridge {
+  id String @id @default(cuid())
+  orgId String
+  name String
+  draft Json
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orgId])
+}
+model BridgeRevision {
+  id String @id @default(cuid())
+  bridgeId String
+  orgId String
+  number Int
+  fingerprint String
+  config Json
+  createdAt DateTime @default(now())
+  @@unique([bridgeId, number])
+  @@index([orgId])
+}
+model BridgeTenant {
+  id String @id @default(cuid())
+  tenantId String @unique
+  orgId String @unique
+}
+model BridgeExecution {
+  id String @id @default(cuid())
+  orgId String
+  executionId String
+  revisionId String
+  operationId String
+  userId String
+  tenantId String
+  deploymentId String
+  digest String
+  status String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([orgId, executionId])
+  @@index([orgId, createdAt])
+}

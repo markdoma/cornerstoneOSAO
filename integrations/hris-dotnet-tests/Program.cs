@@ -1,0 +1,45 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using CornerstoneLabs.AoDelegation;
+using System.Text.Json;
+
+using var rsa = RSA.Create(2048);
+var issuer = new AoJwtIssuer(rsa, "test-key");
+var alice = new AoIdentity("alice", "tenant-a", ["employee"], ["tool:create_task"]);
+var token = issuer.Mint(alice);
+if (issuer.Verify(token).Identity.UserId != "alice") throw new Exception("JWT identity failed");
+if (JsonSerializer.Serialize(issuer.Jwks()).Contains("\"d\"")) throw new Exception("Private key leaked");
+const string secret = "test-service-secret-with-more-than-32-characters";
+var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+var app = new ApplicationBuilder(services);
+app.UseRequireInternalServiceContext(issuer, secret);
+app.Run(ctx => { ctx.Response.StatusCode = ctx.AoUser().UserId == "alice" ? 200 : 403; return Task.CompletedTask; });
+var pipeline = app.Build();
+async Task Check(int expected, string? userToken, bool service = true, string body = "{\"tenant_id\":\"tenant-a\"}") {
+    var ctx = new DefaultHttpContext { RequestServices = services };
+    ctx.Request.Path = "/internal/v1/tasks";
+    ctx.Request.Method = "POST";
+    ctx.Request.ContentType = "application/json";
+    ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+    ctx.Request.ContentLength = ctx.Request.Body.Length;
+    ctx.SetEndpoint(new Endpoint(_ => Task.CompletedTask, new EndpointMetadataCollection(new AoToolScope("tool:create_task")), "create"));
+    if (service) ctx.Request.Headers.Authorization = "Bearer " + secret;
+    if (userToken is not null) ctx.Request.Headers["X-User-Context"] = userToken;
+    await pipeline(ctx);
+    if (ctx.Response.StatusCode != expected) throw new Exception($"Expected {expected}, got {ctx.Response.StatusCode}");
+}
+await Check(200, token);
+await Check(401, null);
+await Check(401, token, false);
+await Check(403, token, body: "{\"TenantId\":\"tenant-b\"}");
+await Check(403, token, body: "{\"nested\":{\"UserId\":\"bob\"}}");
+await Check(403, issuer.Mint(alice with { UserId = "bob" }));
+await Check(403, issuer.Mint(alice with { Scopes = [] }));
+var expired = new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken("hris.internal", "ai-orchestrator.internal", null, DateTime.UtcNow.AddMinutes(-20), DateTime.UtcNow.AddMinutes(-10), new SigningCredentials(new RsaSecurityKey(rsa) { KeyId = "test-key" }, SecurityAlgorithms.RsaSha256)));
+await Check(401, expired);
+Console.WriteLine(".NET delegation: 8 middleware scenarios and issuer/public-JWKS checks passed.");

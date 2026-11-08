@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taskroom · AO Integration Lab</title>
+<style>
+  :root{color-scheme:light;font-family:system-ui,sans-serif;color:#24243c;background:#f6f5fa}
+  body{max-width:760px;margin:auto;padding:28px 18px 100px}header{border-bottom:1px solid #ddd8eb;padding:8px 0 18px}
+  h1{margin:6px 0}.eyebrow{color:#5646aa;font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;font-weight:700}
+  article,section{background:white;border:1px solid #e0dcec;border-radius:14px;padding:20px;margin-top:18px}
+  label{display:block;font-size:.9rem;margin-top:12px}input,select,button{font:inherit;border-radius:8px;padding:8px 12px;border:1px solid #cfc6e2}
+  button{background:#5846ad;color:white;cursor:pointer}button.secondary{background:#ede9f8;color:#362d66}
+  .actions,.task{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.task{border-top:1px solid #eee;padding:10px 0}.task span{flex:1 1 220px}
+  #error{color:#951331}code{background:#f2effa;padding:2px 5px}a{color:#4d3aab}p{line-height:1.5}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">Standalone ASP.NET Core app</div><h1>Taskroom</h1><p>Try a real AO handoff against this app’s own login, user-scoped API, and task list.</p></header>
+<article><strong>Integration lab</strong><p>Configure the API in <a href="http://localhost:3000">AO MCP Bridges</a> using this app’s <a href="/openapi.json">OpenAPI specification</a>. The app uses a copied connector and a public embed snippet.</p></article>
+<section id="signed-out" hidden>
+<h2>Sign in to Taskroom</h2>
+<p>Use either demo account with password <code>lab-demo-only</code>.</p>
+<form id="login">
+<label for="user">Demo account</label><select id="user" name="user"><option value="alice">Alice</option><option value="bob">Bob</option></select>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<button type="submit">Sign in</button>
+</form>
+</section>
+<section id="signed-in" hidden>
+<div class="actions"><h2 id="identity"></h2><button id="logout" class="secondary">Sign out</button></div>
+<p>Your tasks appear here whether you add them yourself or confirm a write in the assistant.</p>
+<form id="create" class="actions"><input name="title" aria-label="New task title" maxlength="100" required placeholder="New task"><button>Add task</button></form>
+<div id="tasks" aria-live="polite"></div>
+</section>
+<p id="error" role="alert"></p>
+<script>
+const el = (id) => document.getElementById(id);
+async function call(path, method = 'GET', body) {
+  const response = await fetch(path, {method, credentials:'same-origin', headers:body === undefined ? {} : {'Content-Type':'application/json'}, body:body === undefined ? undefined : JSON.stringify(body)});
+  if (!response.ok) throw Object.assign(new Error(response.status === 401 ? 'Sign in to continue.' : `Request failed (${response.status}).`), {status:response.status});
+  return response.json();
+}
+const report = (error) => {el('error').textContent = error.message};
+async function refresh() {
+  const tasks = await call('/api/tasks');
+  el('tasks').replaceChildren();
+  for (const task of tasks) {
+    const row=document.createElement('div');row.className='task';
+    const title=document.createElement('span');title.textContent=(task.done?'✓ ':'')+task.title;
+    const toggle=document.createElement('button');toggle.className='secondary';toggle.textContent=task.done?'Reopen':'Complete';
+    toggle.onclick=()=>call(`/api/tasks/${encodeURIComponent(task.id)}`,'PATCH',{done:!task.done}).then(refresh).catch(report);
+    const remove=document.createElement('button');remove.className='secondary';remove.textContent='Delete';
+    remove.onclick=()=>call(`/api/tasks/${encodeURIComponent(task.id)}`,'DELETE').then(refresh).catch(report);
+    row.append(title,toggle,remove);el('tasks').append(row);
+  }
+}
+el('login').onsubmit=(event)=>{event.preventDefault();call('/login','POST',Object.fromEntries(new FormData(event.target))).then(()=>location.reload()).catch(report)};
+el('create').onsubmit=(event)=>{event.preventDefault();call('/api/tasks','POST',Object.fromEntries(new FormData(event.target))).then(()=>{event.target.reset();return refresh()}).catch(report)};
+el('logout').onclick=()=>{window.OrchestratorWidget?.logout();call('/logout','POST',{}).then(()=>location.reload()).catch(report)};
+window.addEventListener('orchestrator:action-completed',()=>{if(!el('signed-in').hidden) void refresh().catch(report)});
+call('/me').then((me)=>{el('identity').textContent=`${me.user === 'alice' ? 'Alice' : 'Bob'}’s tasks`;el('signed-in').hidden=false;return refresh()}).catch((error)=>{if(error.status===401) el('signed-out').hidden=false;else report(error)});
+</script>
+<!-- AO_WIDGET -->
+</body>
+</html>

@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.next/
+dist/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.local/
+**/bin/
+**/obj/
+
+__pycache__/
+*.pyc
+
+# Installed local integration lab artifacts (copied from AO).
+examples/integration-lab/AoConnector.cs
+examples/integration-lab/Widget.html

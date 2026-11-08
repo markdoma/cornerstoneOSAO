@@ -1,0 +1,10 @@
+node_modules
+.git
+.env
+.env.*
+.local
+**/.next
+**/dist
+test-results
+playwright-report
+examples/integration-lab

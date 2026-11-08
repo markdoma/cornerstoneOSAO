@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1100" fill="none">
+  <defs>
+    <linearGradient id="sky" x2="1000" y2="1100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#78B9F5" />
+      <stop offset=".65" stop-color="#BDDEFA" />
+      <stop offset="1" stop-color="#E9F5FF" />
+    </linearGradient>
+    <linearGradient id="peak" x1="900" y1="100" x2="750" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C8E96A" />
+      <stop offset=".45" stop-color="#58C2DD" />
+      <stop offset="1" stop-color="#3983CB" />
+    </linearGradient>
+    <linearGradient id="snow" x2="600" y2="1100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#B4CEE9" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1600v1100H0z" />
+  <g stroke="#E5F8FF" stroke-width="2" opacity=".5">
+    <path d="M-100 700 650-50M0 990 1550-50M700 1100 1600 200" />
+  </g>
+  <path d="m390 920 590-830 580 830Z" fill="url(#peak)" opacity=".8" />
+  <path d="m980 90-90 550-500 280Z" fill="#4E99DA" opacity=".55" />
+  <path d="m980 90 580 830-670-280Z" fill="#D5F4C0" opacity=".34" />
+  <path
+    d="m390 920 500-280 670 280M890 640l90-550"
+    stroke="#DDFBFF"
+    stroke-width="3"
+    opacity=".65"
+  />
+  <path d="m-100 1100 370-440 210 240 320-370 490 570Z" fill="#7599C2" />
+  <path d="m800 530 490 570H380Z" fill="url(#snow)" />
+  <path d="m800 530-18 215 120 78-59-22 157 299h289Z" fill="#406D9C" />
+  <path d="m800 530-166 370 91-97-28 160 103-83-31 220h244L862 816l-55-60Z" fill="#84A8CC" />
+  <path d="m270 660-67 249 73-70 8 121 74-78 122 18Z" fill="url(#snow)" />
+  <path d="m1040 1100 360-460 300 460Z" fill="#4C769F" />
+  <path d="m1400 640-78 232 88-52-16 133 62-56 244 203Z" fill="url(#snow)" />
+</svg>

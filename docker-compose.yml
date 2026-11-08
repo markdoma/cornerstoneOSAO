@@ -1,0 +1,115 @@
+# Local Docker stack. Public ports bind only to the host loopback interface.
+x-ao-app: &ao-app
+  image: cornerstonelabs-ao:local
+  build:
+    context: .
+    args:
+      WIDGET_ORIGIN: ${WIDGET_ORIGIN:-http://localhost:4000}
+  init: true
+
+x-ao-key-reader: &ao-key-reader
+  # Match the host owner for the read-only local signing key mount.
+  user: '${AO_DOCKER_UID:-1000}:${AO_DOCKER_GID:-1000}'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orchestrator}
+      POSTGRES_DB: orchestrator
+    ports: ['127.0.0.1:5432:5432']
+    volumes: ['postgres-data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U orchestrator -d orchestrator -h 127.0.0.1']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mail:
+    image: axllent/mailpit:v1.27
+    ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
+  migrate:
+    <<: *ao-app
+    command: ['npm', 'run', 'db:migrate']
+    environment:
+      DATABASE_URL: postgresql://orchestrator:${POSTGRES_PASSWORD:-orchestrator}@db:5432/orchestrator
+    depends_on:
+      db: { condition: service_healthy }
+  api:
+    <<: [*ao-app, *ao-key-reader]
+    command: ['npm', 'run', 'start', '-w', '@orchestrator/api']
+    environment:
+      HOME: /tmp
+      DATABASE_URL: postgresql://orchestrator:${POSTGRES_PASSWORD:-orchestrator}@db:5432/orchestrator
+      API_PORT: 4000
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      WIDGET_ORIGIN: ${WIDGET_ORIGIN:-http://localhost:4000}
+      CREDENTIAL_KEY: ${CREDENTIAL_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODELS: ${OPENAI_MODELS:-gpt-4.1-mini}
+      SMTP_URL: smtp://mail:1025
+      MAIL_FROM: ${MAIL_FROM:-CornerstoneLabs AO <no-reply@localhost>}
+      MCP_BRIDGE_ENABLED: ${MCP_BRIDGE_ENABLED:-false}
+      BRIDGE_URL: http://127.0.0.1:4010
+      BRIDGE_PRIVATE_KEY_PATH: /run/bridge-keys/private.pem
+      BRIDGE_SIGNING_KID: ${BRIDGE_SIGNING_KID:-ao-bridge-1}
+      LEGACY_DIRECT_SETUP_ENABLED: ${LEGACY_DIRECT_SETUP_ENABLED:-false}
+      FIRST_PARTY_JWKS_URL:
+      FIRST_PARTY_TENANT_ORGS:
+      HRIS_INTERNAL_API_BASE_URL:
+      AO_SERVICE_TOKEN:
+      NODE_ENV: development
+    volumes:
+      - ${BRIDGE_KEY_DIR:-./.local/bridge}:/run/bridge-keys:ro
+    ports: ['127.0.0.1:4000:4000']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+  web:
+    <<: *ao-app
+    command: ['node', 'apps/web/.next/standalone/apps/web/server.js']
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports: ['127.0.0.1:3000:3000']
+    depends_on:
+      api: { condition: service_healthy }
+  bridge-redis:
+    profiles: [mcp]
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      retries: 10
+  bridge:
+    <<: [*ao-app, *ao-key-reader]
+    profiles: [mcp]
+    network_mode: service:api
+    command: ['npm', 'run', 'start', '-w', '@orchestrator/bridge']
+    environment:
+      HOME: /tmp
+      BRIDGE_DATABASE_URL: ${AO_DOCKER_BRIDGE_DATABASE_URL:-postgresql://orchestrator:${POSTGRES_PASSWORD:-orchestrator}@db:5432/orchestrator}
+      BRIDGE_REDIS_URL: redis://bridge-redis:6379
+      BRIDGE_ENCRYPTION_KEY: ${BRIDGE_ENCRYPTION_KEY:-}
+      BRIDGE_PUBLIC_KEY_PATH: /run/secrets/bridge-public.pem
+      BRIDGE_SIGNING_KID: ${BRIDGE_SIGNING_KID:-ao-bridge-1}
+      BRIDGE_HOST: 127.0.0.1
+      BRIDGE_ALLOWED_HOSTS: localhost,127.0.0.1
+      NODE_ENV: development
+    volumes:
+      - ${BRIDGE_PUBLIC_KEY_PATH:-./.local/bridge/public.pem}:/run/secrets/bridge-public.pem:ro
+    depends_on:
+      api: { condition: service_healthy, restart: true }
+      bridge-redis: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4010/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+volumes:
+  postgres-data:
